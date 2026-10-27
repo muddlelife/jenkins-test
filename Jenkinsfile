@@ -8,6 +8,18 @@ pipeline {
     }
 
     stages {
+        stage('Test credential masking') {
+            steps {
+                withCredentials([string(credentialsId: 'config', variable: 'API_KEY')]) {
+                    sh(label: 'Test masking with dummy credential', script: '''#!/bin/sh
+set +x
+printf 'API_KEY=%s\\n' "$API_KEY"
+echo "$API_KEY"
+''')
+                }
+            }
+        }
+
         stage('Inspect agent environment') {
             steps {
                 sh(label: 'Show agent and tool paths', script: '''#!/bin/sh
