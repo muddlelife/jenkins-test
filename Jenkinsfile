@@ -10,11 +10,30 @@ pipeline {
     stages {
         stage('Test credential masking') {
             steps {
-                withCredentials([string(credentialsId: 'config', variable: 'API_KEY')]) {
-                    sh(label: 'Test masking with dummy credential', script: '''#!/bin/sh
+                // Dummy credentials only: JSON field values may NOT be masked in logs.
+                withCredentials([file(credentialsId: 'config', variable: 'CONFIG_FILE')]) {
+                    sh(label: 'Print dummy JSON credential fields', script: '''#!/bin/sh
 set +x
-printf 'API_KEY=%s\\n' "$API_KEY"
-echo "$API_KEY"
+set -eu
+command -v python3 >/dev/null 2>&1 || {
+    echo 'ERROR: python3 is required on the rack agent.' >&2
+    exit 1
+}
+python3 - <<'PY'
+import json
+import os
+
+with open(os.environ['CONFIG_FILE'], encoding='utf-8') as source:
+    config = json.load(source)
+
+for field in ('api_key', 'endpoint'):
+    if not isinstance(config.get(field), str):
+        raise SystemExit(f'ERROR: config must contain a string field: {field}')
+
+print('WARNING: dummy credential test; these values may not be masked.')
+print('api_key=' + config['api_key'])
+print('endpoint=' + config['endpoint'])
+PY
 ''')
                 }
             }
